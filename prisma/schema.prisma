@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Enum definitions
+enum Role {
+  ADMIN
+  CREATOR
+  REVIEWER
+}
+
+enum ApprovalStatus {
+  CANDIDATE
+  APPROVED
+  REJECTED
+}
+
+// Core tables
+model Organization {
+  id          String   @id @default(uuid())
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  profiles    Profile[]
+  campaigns   Campaign[]
+  brandFacts  BrandFact[]
+  brandTerms  BrandTerm[]
+  brandRules  BrandRule[]
+  brandDocs   BrandDocument[]
+}
+
+model Profile {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  fullName        String?
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  memberships     Membership[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Membership {
+  id          String @id @default(uuid())
+  profileId   String
+  profile     Profile @relation(fields: [profileId], references: [id])
+  organizationId String
+  organization Organization @relation(fields: [organizationId], references: [id])
+  role        Role
+  createdAt   DateTime @default(now())
+}
+
+model BrandFact {
+  id            String   @id @default(uuid())
+  organizationId String
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  key           String
+  value         String
+  category      String?
+  description   String?
+  source        String?
+  status        ApprovalStatus @default(CANDIDATE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model BrandTerm {
+  id            String   @id @default(uuid())
+  organizationId String
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  term          String
+  replacement   String?
+  explanation   String?
+  isForbidden   Boolean @default(false)
+  status        ApprovalStatus @default(CANDIDATE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model BrandRule {
+  id            String   @id @default(uuid())
+  organizationId String
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  rule          String
+  description   String?
+  status        ApprovalStatus @default(CANDIDATE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model BrandDocument {
+  id            String   @id @default(uuid())
+  organizationId String
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  fileName      String
+  fileUrl       String
+  extractedText String?
+  status        ApprovalStatus @default(CANDIDATE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Campaign {
+  id               String   @id @default(uuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id])
+  name             String
+  description      String?
+  product          String?
+  type             String?
+  channels         String?
+  startDate        DateTime?
+  endDate          DateTime?
+  team             String?
+  reviewerIds      String[] // user ids
+  status           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  campaignFacts    CampaignFact[]
+  submissions      Submission[]
+}
+
+model CampaignFact {
+  id            String   @id @default(uuid())
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id])
+  key           String
+  value         String
+  category      String?
+  description   String?
+  source        String?
+  status        ApprovalStatus @default(CANDIDATE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Submission {
+  id            String   @id @default(uuid())
+  campaignId    String
+  campaign      Campaign @relation(fields: [campaignId], references: [id])
+  creatorId     String
+  creator       Profile @relation(fields: [creatorId], references: [id])
+  title         String
+  channel       String?
+  content       String
+  status        String @default("PENDING")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  versions      SubmissionVersion[]
+  analysisRuns  AnalysisRun[]
+  reviewDecisions ReviewDecision[]
+}
+
+model SubmissionVersion {
+  id            String   @id @default(uuid())
+  submissionId  String
+  submission    Submission @relation(fields: [submissionId], references: [id])
+  versionNumber Int @default(1)
+  content       String
+  createdAt     DateTime @default(now())
+}
+
+model AnalysisRun {
+  id            String   @id @default(uuid())
+  submissionId  String
+  submission    Submission @relation(fields: [submissionId], references: [id])
+  runAt         DateTime @default(now())
+  findings      Finding[]
+}
+
+model Finding {
+  id            String   @id @default(uuid())
+  analysisRunId String
+  analysisRun   AnalysisRun @relation(fields: [analysisRunId], references: [id])
+  category      String
+  issue         String
+  excerpt       String?
+  explanation   String?
+  severity      String
+  evidenceState String
+  sourceRef     String?
+  suggestedFix  String?
+  status        String @default("OPEN")
+  createdAt     DateTime @default(now())
+}
+
+model ReviewDecision {
+  id            String   @id @default(uuid())
+  submissionId  String
+  submission    Submission @relation(fields: [submissionId], references: [id])
+  reviewerId    String
+  reviewer      Profile @relation(fields: [reviewerId], references: [id])
+  decision      String // APPROVED or REJECTED
+  comments      String?
+  createdAt     DateTime @default(now())
+}
+
+model ActivityLog {
+  id            String   @id @default(uuid())
+  organizationId String
+  organization  Organization @relation(fields: [organizationId], references: [id])
+  type          String
+  description   String
+  metadata      Json?
+  createdAt     DateTime @default(now())
+}
